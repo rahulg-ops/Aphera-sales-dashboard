@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aphera Hospitality — Sales Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Segoe UI",Tahoma,sans-serif;background:#0f1923;min-height:100vh}
+/* -------- HEADER --------- */
+.top-header{background:linear-gradient(135deg,#1a2f5a 0%,#1e3a6e 100%);padding:22px 36px;display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #2e75b6}
+.top-header h1{color:#fff;font-size:22px;font-weight:700;letter-spacing:.5px}
+.top-header .subtitle{color:#8eb4e3;font-size:12px;margin-top:3px}
+.top-header .gen-time{color:#6a93c5;font-size:11px;text-align:right}
+/* -------- KPI STRIP --------- */
+.kpi-strip{display:flex;gap:14px;padding:18px 36px;background:#131f2e;flex-wrap:wrap}
+.kpi{flex:1;min-width:170px;background:#1c2d44;border-radius:8px;padding:16px 18px;border-left:4px solid #2e75b6;cursor:default}
+.kpi.green{border-left-color:#27ae60}.kpi.amber{border-left-color:#f39c12}.kpi.red{border-left-color:#e74c3c}
+.kpi-label{font-size:10px;color:#6e91b4;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.kpi-value{font-size:24px;font-weight:700;color:#e8f0fe}
+.kpi-sub{font-size:10px;color:#4e7aab;margin-top:4px}
+/* -------- TABS --------- */
+.tab-bar{display:flex;background:#101925;padding:0 36px;border-bottom:2px solid #1c3054;overflow-x:auto}
+.tab-btn{padding:13px 22px;color:#5a80a8;font-size:13px;font-weight:600;cursor:pointer;border:none;background:none;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab-btn:hover{color:#8eb4e3}
+.tab-btn.active{color:#4db8ff;border-bottom-color:#4db8ff}
+/* -------- TAB PANELS --------- */
+.tab-panel{display:none;padding:24px 36px}
+.tab-panel.active{display:block}
+/* -------- SECTION HEADING --------- */
+.sec-head{font-size:14px;font-weight:700;color:#8eb4e3;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #1e3558}
+/* -------- CARD / CHART CONTAINERS --------- */
+.row-flex{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:24px}
+.chart-card{background:#1c2d44;border-radius:8px;padding:20px;flex:1;min-width:280px}
+.chart-card h3{font-size:12px;color:#6e91b4;text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px}
+.chart-wrap{position:relative;height:260px}
+/* -------- TABLES --------- */
+.tbl-wrap{overflow-x:auto;border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:#1a3060}
+th{padding:10px 14px;color:#8eb4e3;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:left;white-space:nowrap}
+th.num{text-align:right}
+tbody tr{border-bottom:1px solid #17263a}
+tbody tr:hover{background:#1e3350}
+td{padding:9px 14px;color:#c8d8f0;vertical-align:middle}
+td.num{text-align:right;font-family:"Courier New",monospace}
+td.good{color:#27ae60;font-weight:600}
+td.warn{color:#f39c12;font-weight:600}
+td.bad{color:#e74c3c;font-weight:600}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.badge.matched{background:#1a4a2a;color:#2ecc71}
+.badge.pending{background:#3a3000;color:#f39c12}
+.badge.mismatch{background:#4a0000;color:#e74c3c}
+.badge.partial{background:#1a2a4a;color:#4db8ff}
+.badge.neg{background:#4a1a00;color:#ff7043}
+/* total rows */
+tr.total-row td{background:#0d1e35;color:#e8f0fe;font-weight:700;border-top:2px solid #2e75b6}
+/* search input */
+.search-box{width:280px;padding:7px 12px;background:#1c2d44;border:1px solid #2e5090;border-radius:6px;color:#c8d8f0;font-size:12px;outline:none;margin-bottom:14px}
+/* flow table */
+.flow-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px}
+.flow-table td{padding:10px 14px;border-bottom:1px solid #17263a;color:#c8d8f0}
+.flow-table tr:hover td{background:#1e3350}
+.flow-table .flow-label{font-weight:600;color:#8eb4e3}
+.flow-table .flow-amt{text-align:right;font-family:"Courier New",monospace;font-weight:700}
+.flow-table .flow-neg{color:#e74c3c}
+.flow-table .flow-pos{color:#27ae60}
+.flow-table .flow-note{font-size:11px;color:#4e7aab;font-style:italic}
+.flow-table tr.flow-total td{background:#0d1e35;font-weight:700;border-top:2px solid #2e75b6}
+@media(max-width:768px){.kpi-strip{padding:12px}.tab-panel{padding:12px}.top-header{padding:14px}}
+</style>
+</head>
+<body>
+
+<div class="top-header">
+  <div>
+    <h1>&#127771; APHERA HOSPITALITY</h1>
+    <div class="subtitle">Sales Reconciliation &amp; Receipt Dashboard &mdash; Dec 2025 &ndash; Mar 2026</div>
+  </div>
+  <div class="gen-time">Generated: 14 March 2026 at 22:50:46</div>
+</div>
+
+<div class="kpi-strip" id="kpiStrip"></div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('overview',this)">&#128200; Overview</button>
+  <button class="tab-btn" onclick="switchTab('reco',this)">&#128203; Sales vs Receipt Reco</button>
+  <button class="tab-btn" onclick="switchTab('channel',this)">&#128381; Channel Reco</button>
+  <button class="tab-btn" onclick="switchTab('bank',this)">&#127983; Bank Receipts</button>
+  <button class="tab-btn" onclick="switchTab('swiggy',this)">&#127860; Swiggy / Dineout</button>
+</div>
+
+<!-- OVERVIEW TAB -->
+<div id="tab-overview" class="tab-panel active">
+  <div class="sec-head">Financial Overview</div>
+  <div class="row-flex">
+    <div class="chart-card" style="flex:2;min-width:380px">
+      <h3>Monthly Sales vs Receipts</h3>
+      <div class="chart-wrap"><canvas id="ctxMonthBar"></canvas></div>
+    </div>
+    <div class="chart-card" style="flex:1;min-width:260px">
+      <h3>Overall Collection Status</h3>
+      <div class="chart-wrap"><canvas id="ctxOverviewDonut"></canvas></div>
+    </div>
+  </div>
+  <div class="row-flex">
+    <div class="chart-card" style="flex:1;min-width:260px">
+      <h3>Channel-wise Recovery %</h3>
+      <div class="chart-wrap"><canvas id="ctxChannelRecovery"></canvas></div>
+    </div>
+    <div class="chart-card" style="flex:2;min-width:380px">
+      <h3>Sales Distribution by Channel</h3>
+      <div class="chart-wrap"><canvas id="ctxChannelSales"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- SALES vs RECO TAB -->
+<div id="tab-reco" class="tab-panel">
+  <div class="sec-head">Month-wise Sales vs Bank Receipt Reconciliation</div>
+  <div class="row-flex">
+    <div class="chart-card" style="flex:2;min-width:380px">
+      <h3>Sales vs Receipts vs Outstanding (Monthly)</h3>
+      <div class="chart-wrap"><canvas id="ctxRecoStacked"></canvas></div>
+    </div>
+    <div class="chart-card" style="flex:1;min-width:260px">
+      <h3>Recovery % Trend</h3>
+      <div class="chart-wrap"><canvas id="ctxRecoPct"></canvas></div>
+    </div>
+  </div>
+  <div class="sec-head" style="margin-top:12px">Monthly Detail Table</div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>Month</th>
+        <th class="num">Sales (&#8377;)</th>
+        <th class="num">Bank Receipts (&#8377;)</th>
+        <th class="num">Outstanding (&#8377;)</th>
+        <th class="num">Recovery %</th>
+      </tr></thead>
+      <tbody id="recoTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CHANNEL RECO TAB -->
+<div id="tab-channel" class="tab-panel">
+  <div class="sec-head">Channel-wise Reconciliation</div>
+  <div class="row-flex">
+    <div class="chart-card" style="flex:3;min-width:420px">
+      <h3>Sales vs Receipts by Channel</h3>
+      <div class="chart-wrap" style="height:300px"><canvas id="ctxChannelBar"></canvas></div>
+    </div>
+    <div class="chart-card" style="flex:1;min-width:240px">
+      <h3>Recovery by Channel (%)</h3>
+      <div class="chart-wrap"><canvas id="ctxChannelPie"></canvas></div>
+    </div>
+  </div>
+  <div class="sec-head" style="margin-top:12px">Channel Detail Table</div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>Channel</th>
+        <th class="num">Sales (&#8377;)</th>
+        <th class="num">Receipts (&#8377;)</th>
+        <th class="num">Outstanding (&#8377;)</th>
+        <th class="num">Recovery %</th>
+      </tr></thead>
+      <tbody id="channelTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- BANK RECEIPTS TAB -->
+<div id="tab-bank" class="tab-panel">
+  <div class="sec-head">Bank Receipt Summary by Category</div>
+  <div class="row-flex">
+    <div class="chart-card" style="flex:1;min-width:260px">
+      <h3>Receipts by Channel</h3>
+      <div class="chart-wrap"><canvas id="ctxBankDonut"></canvas></div>
+    </div>
+    <div class="chart-card" style="flex:2;min-width:380px">
+      <h3>Monthly Receipt Trend</h3>
+      <div class="chart-wrap"><canvas id="ctxBankMonthly"></canvas></div>
+    </div>
+  </div>
+  <div class="sec-head" style="margin-top:12px">Bank Credit Transactions</div>
+  <input type="text" class="search-box" id="bankSearch" oninput="filterBank()" placeholder="&#128269; Search by date, description or channel...">
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>Date</th>
+        <th>Description</th>
+        <th>Channel</th>
+        <th>Month</th>
+        <th class="num">Amount (&#8377;)</th>
+      </tr></thead>
+      <tbody id="bankTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- SWIGGY / DINEOUT TAB -->
+<div id="tab-swiggy" class="tab-panel">
+  <div class="sec-head">Financial Flow Summary</div>
+  <table class="flow-table" id="flowTable"></table>
+
+  <div class="sec-head" style="margin-top:20px">Weekly Invoice Detail (18 Payout Periods)</div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>Payout Period</th>
+        <th>Payout On</th>
+        <th class="num">Orders</th>
+        <th class="num">Bill Value (A)</th>
+        <th class="num">Swiggy Fees (B)</th>
+        <th class="num">Merchant Adj (C)</th>
+        <th class="num">Net Payout (G)</th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody id="invTbody"></tbody>
+    </table>
+  </div>
+
+  <div class="sec-head" style="margin-top:20px">UTR-wise Payment Matching (14 UTRs &mdash; 14/14 Matched)</div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>UTR ID</th>
+        <th>UTR Date</th>
+        <th class="num">Txns</th>
+        <th class="num">Bill Amount</th>
+        <th class="num">Commission</th>
+        <th class="num">GST</th>
+        <th class="num">Receivable</th>
+        <th class="num">Bank Receipt</th>
+        <th class="num">Variance</th>
+        <th>Status</th>
+      </tr></thead>
+      <tbody id="utrTbody"></tbody>
+    </table>
+  </div>
+
+  <div class="row-flex" style="margin-top:24px">
+    <div class="chart-card" style="flex:3;min-width:400px">
+      <h3>Weekly Invoice: Bill vs Fees vs Merchant Adj vs Net Payout</h3>
+      <div class="chart-wrap" style="height:280px"><canvas id="ctxInvBar"></canvas></div>
+    </div>
+    <div class="chart-card" style="flex:1;min-width:240px">
+      <h3>Payment Recovery (Swiggy)</h3>
+      <div class="chart-wrap"><canvas id="ctxUtrDonut"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== DATA =====
+const MONTHS     = ["December 2025", "January 2026", "February 2026", "March 2026"];
+const M_SALES    = [132591.0, 2508694.0, 5546414.0, 2165873.0];
+const M_RCTS     = [0.0, 4540798.9799999995, 5253021.72, 2837461.65];
+const M_OUT      = [132591.0, 0, 293392.28, 0];
+const M_REC      = [0.0, 181.0, 94.7, 131.0];
+const CHANNELS   = ["BOH", "Card", "Cash", "Dineout", "EazyDiner", "UPI", "Zomato"];
+const C_SALES    = [113877.0, 7181302.0, 579447.0, 897309.0, 209848.0, 26000.0, 1345789.0];
+const C_RCTS     = [0.0, 6814986.3100000005, 0.0, 665552.8600000001, 195573.47, 0.0, 1046298.7099999998];
+const C_OUT      = [113877.0, 366315.69, 579447.0, 231756.14, 14274.53, 26000.0, 299490.29];
+const C_REC      = [0.0, 94.9, 0.0, 74.2, 93.2, 0.0, 77.7];
+const BANK_ROWS  = [{"date": "01 Jan 2026", "desc": "FT-MESPOS SET 10XX358822 010126", "amount": 17953.17, "channel": "Card", "month": "Jan 2026"}, {"date": "01 Jan 2026", "desc": "MMT/IMPS/600197019080/Restaurant bank/EAZYDINER /Yes Bank", "amount": 1.0, "channel": "EazyDiner", "month": "Jan 2026"}, {"date": "02 Jan 2026", "desc": "FT-MESPOS SET 10XX358822 010226", "amount": 221671.33, "channel": "Card", "month": "Feb 2026"}, {"date": "03 Jan 2026", "desc": "EZY/MESPOS_SET_10XX358822_010326", "amount": 362249.97, "channel": "Card", "month": "Mar 2026"}, {"date": "03 Jan 2026", "desc": "NEFT-YESF260605842421-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 75124.29, "channel": "Dineout", "month": "Mar 2026"}, {"date": "01 Feb 2026", "desc": "FT-MESPOS SET 10XX358822 020126", "amount": 14853.38, "channel": "Card", "month": "Jan 2026"}, {"date": "02 Feb 2026", "desc": "NEFT-CITIN26616486867-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 75170.6, "channel": "Zomato", "month": "Feb 2026"}, {"date": "02 Feb 2026", "desc": "NEFT-YESF260335192703-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 44057.37, "channel": "Dineout", "month": "Feb 2026"}, {"date": "02 Feb 2026", "desc": "FT-MESPOS SET 10XX358822 020226", "amount": 111762.72, "channel": "Card", "month": "Feb 2026"}, {"date": "03 Feb 2026", "desc": "EZY/MESPOS_SET_10XX358822_020326", "amount": 374432.19, "channel": "Card", "month": "Mar 2026"}, {"date": "03 Feb 2026", "desc": "NEFT-CITIN26630315448-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 62972.37, "channel": "Zomato", "month": "Mar 2026"}, {"date": "02 Mar 2026", "desc": "FT-MESPOS SET 10XX358822 030226", "amount": 32778.16, "channel": "Card", "month": "Feb 2026"}, {"date": "02 Mar 2026", "desc": "NEFT-YESF360345904317-EAZYDINER PRIVATE LIMITED-PAYMENT FROM EAZYDIN-017281300000745-YESB0", "amount": 5460.43, "channel": "EazyDiner", "month": "Feb 2026"}, {"date": "03 Mar 2026", "desc": "EZY/MESPOS_SET_10XX358822_030326", "amount": 15612.4, "channel": "Card", "month": "Mar 2026"}, {"date": "03 Mar 2026", "desc": "NEFT-YESF360625904669-EAZYDINER PRIVATE LIMITED-PAYMENT FROM EAZYDIN-017281300000745-YESB0", "amount": 25119.38, "channel": "EazyDiner", "month": "Mar 2026"}, {"date": "01 Apr 2026", "desc": "FT-MESPOS SET 10XX358822 040126", "amount": 34214.09, "channel": "Card", "month": "Jan 2026"}, {"date": "02 Apr 2026", "desc": "NEFT-CITIN26617126818-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 35376.47, "channel": "Zomato", "month": "Feb 2026"}, {"date": "02 Apr 2026", "desc": "FT-MESPOS SET 10XX358822 040226", "amount": 28844.74, "channel": "Card", "month": "Feb 2026"}, {"date": "03 Apr 2026", "desc": "NEFT-CITIN26631526376-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 76394.1, "channel": "Zomato", "month": "Mar 2026"}, {"date": "03 Apr 2026", "desc": "EZY/MESPOS_SET_10XX358822_040326", "amount": 217590.74, "channel": "Card", "month": "Mar 2026"}, {"date": "01 May 2026", "desc": "RTGS-HDFCR52026010553595407-APHERA HOSPITALITY PRIVATE LIMITED-99909678398869  -HDFC000024", "amount": 400000.0, "channel": "Bank Transfer", "month": "Jan 2026"}, {"date": "01 May 2026", "desc": "FT-MESPOS SET 10XX358822 050126", "amount": 12533.73, "channel": "Card", "month": "Jan 2026"}, {"date": "02 May 2026", "desc": "FT-MESPOS SET 10XX358822 050226", "amount": 47261.16, "channel": "Card", "month": "Feb 2026"}, {"date": "03 May 2026", "desc": "NEFT-RETURN-IN42606456515128-SUNITHAMADHU-Incorrect Account Number  AC01", "amount": 34000.0, "channel": "Credit Card", "month": "Mar 2026"}, {"date": "03 May 2026", "desc": "EZY/MESPOS_SET_10XX358822_050326", "amount": 40906.96, "channel": "Card", "month": "Mar 2026"}, {"date": "01 Jun 2026", "desc": "NEFT-YESF260065650404-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 17862.15, "channel": "Dineout", "month": "Jan 2026"}, {"date": "01 Jun 2026", "desc": "FT-MESPOS SET 10XX358822 060126", "amount": 31949.54, "channel": "Card", "month": "Jan 2026"}, {"date": "02 Jun 2026", "desc": "NEFT-YESF260375587036-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 11160.01, "channel": "Dineout", "month": "Feb 2026"}, {"date": "02 Jun 2026", "desc": "FT-MESPOS SET 10XX358822 060226", "amount": 107973.52, "channel": "Card", "month": "Feb 2026"}, {"date": "03 Jun 2026", "desc": "NEFT-YESF260655463311-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 41481.49, "channel": "Dineout", "month": "Mar 2026"}, {"date": "03 Jun 2026", "desc": "EZY/MESPOS_SET_10XX358822_060326", "amount": 111749.73, "channel": "Card", "month": "Mar 2026"}, {"date": "01 Jul 2026", "desc": "FT-MESPOS SET 10XX358822 070126", "amount": 5056.0, "channel": "Card", "month": "Jan 2026"}, {"date": "02 Jul 2026", "desc": "FT-MESPOS SET 10XX358822 070226", "amount": 103021.18, "channel": "Card", "month": "Feb 2026"}, {"date": "03 Jul 2026", "desc": "EZY/MESPOS_SET_10XX358822_070326", "amount": 164906.22, "channel": "Card", "month": "Mar 2026"}, {"date": "01 Aug 2026", "desc": "MMT/IMPS/600815394385/Internal/APHERA HOS/HDFC Bank", "amount": 150000.0, "channel": "Bank Transfer", "month": "Jan 2026"}, {"date": "01 Aug 2026", "desc": "FT-MESPOS SET 10XX358822 080126", "amount": 2788.8, "channel": "Card", "month": "Jan 2026"}, {"date": "02 Aug 2026", "desc": "FT-MESPOS SET 10XX358822 080226", "amount": 185898.41, "channel": "Card", "month": "Feb 2026"}, {"date": "03 Aug 2026", "desc": "EZY/MESPOS_SET_10XX358822_080326", "amount": 258858.35, "channel": "Card", "month": "Mar 2026"}, {"date": "01 Sep 2026", "desc": "FT-MESPOS SET 10XX358822 090126", "amount": 31042.0, "channel": "Card", "month": "Jan 2026"}, {"date": "02 Sep 2026", "desc": "NEFT-CITIN26618916881-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 15958.82, "channel": "Zomato", "month": "Feb 2026"}, {"date": "02 Sep 2026", "desc": "FT-MESPOS SET 10XX358822 090226", "amount": 184501.86, "channel": "Card", "month": "Feb 2026"}, {"date": "03 Sep 2026", "desc": "NEFT-CITIN26633577527-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 65527.94, "channel": "Zomato", "month": "Mar 2026"}, {"date": "03 Sep 2026", "desc": "EZY/MESPOS_SET_10XX358822_090326", "amount": 167282.51, "channel": "Card", "month": "Mar 2026"}, {"date": "01 Oct 2026", "desc": "FT-MESPOS SET 10XX358822 100126", "amount": 4298.0, "channel": "Card", "month": "Jan 2026"}, {"date": "01 Oct 2026", "desc": "RTGS-HDFCR52026011055740722-APHERA HOSPITALITY PRIVATE LIMITED-99909678398869  -HDFC000024", "amount": 337000.0, "channel": "Bank Transfer", "month": "Jan 2026"}, {"date": "02 Oct 2026", "desc": "FT-MESPOS SET 10XX358822 100226", "amount": 28514.23, "channel": "Card", "month": "Feb 2026"}, {"date": "02 Oct 2026", "desc": "NEFT-RETURN-IN42604151880967-Saahitya-Incorrect Account Number  AC01", "amount": 15660.0, "channel": "Credit Card", "month": "Feb 2026"}, {"date": "02 Oct 2026", "desc": "NEFT-RETURN-IN42604151881065-SubashTamang-Not specified reason customer generated  MS02", "amount": 24192.0, "channel": "Bank Transfer", "month": "Feb 2026"}, {"date": "02 Oct 2026", "desc": "NEFT-YESF360415939145-EAZYDINER PRIVATE LIMITED-PAYMENT FROM EAZYDIN-017281300000745-YESB0", "amount": 12229.72, "channel": "EazyDiner", "month": "Feb 2026"}, {"date": "02 Oct 2026", "desc": "NEFT-YESF260415681333-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 89116.27, "channel": "Dineout", "month": "Feb 2026"}, {"date": "03 Oct 2026", "desc": "NEFT-YESF260696189039-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 101854.56, "channel": "Dineout", "month": "Mar 2026"}, {"date": "03 Oct 2026", "desc": "NEFT-YESF360696161290-EAZYDINER PRIVATE LIMITED-PAYMENT FROM EAZYDIN-017281300000745-YESB0", "amount": 31531.77, "channel": "EazyDiner", "month": "Mar 2026"}, {"date": "03 Oct 2026", "desc": "EZY/MESPOS_SET_10XX358822_100326", "amount": 26007.0, "channel": "Card", "month": "Mar 2026"}, {"date": "03 Oct 2026", "desc": "NEFT-KKBKH26069804055-RUDRAYA WASTECH PRIVATE LIMITED-PAYMENT-5747109177-KKBK0000958", "amount": 621.0, "channel": "Bank Transfer", "month": "Mar 2026"}, {"date": "01 Nov 2026", "desc": "FT-MESPOS SET 10XX358822 110126", "amount": 69455.34, "channel": "Card", "month": "Jan 2026"}, {"date": "02 Nov 2026", "desc": "MMT/IMPS/604298024738/Payout/API Bankin", "amount": 1.0, "channel": "Bank Transfer", "month": "Feb 2026"}, {"date": "02 Nov 2026", "desc": "NEFT-CITIN26620059602-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 86664.74, "channel": "Zomato", "month": "Feb 2026"}, {"date": "02 Nov 2026", "desc": "FT-MESPOS SET 10XX358822 110226", "amount": 152661.79, "channel": "Card", "month": "Feb 2026"}, {"date": "03 Nov 2026", "desc": "RTGS-HDFCR52026031180518917-APHERA HOSPITALITY PRIVATE LIMITED-99909678398869  -HDFC000024", "amount": 400000.0, "channel": "Bank Transfer", "month": "Mar 2026"}, {"date": "03 Nov 2026", "desc": "EZY/MESPOS_SET_10XX358822_110326", "amount": 11170.95, "channel": "Card", "month": "Mar 2026"}, {"date": "03 Nov 2026", "desc": "NEFT-CITIN26634723894-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 125298.88, "channel": "Zomato", "month": "Mar 2026"}, {"date": "01 Dec 2026", "desc": "NEFT-CITIN26604132318-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 6060.76, "channel": "Zomato", "month": "Jan 2026"}, {"date": "01 Dec 2026", "desc": "FT-MESPOS SET 10XX358822 120126", "amount": 21108.51, "channel": "Card", "month": "Jan 2026"}, {"date": "01 Dec 2026", "desc": "UPI/RVSL108967687018/forcurtains/drapesavenue.64//ICI9d3e0100fac04437b70f478dae254291", "amount": 64797.0, "channel": "Other", "month": "Jan 2026"}, {"date": "02 Dec 2026", "desc": "FT-MESPOS SET 10XX358822 120226", "amount": 149623.19, "channel": "Card", "month": "Feb 2026"}, {"date": "02 Dec 2026", "desc": "MMT/IMPS/604321907109/IMPS transactio/APHERA HOS/HDFC Bank", "amount": 100000.0, "channel": "Bank Transfer", "month": "Feb 2026"}, {"date": "03 Dec 2026", "desc": "EZY/MESPOS_SET_10XX358822_120326", "amount": 46768.85, "channel": "Card", "month": "Mar 2026"}, {"date": "", "desc": "NEFT-YESF360135939653-EAZYDINER PRIVATE LIMITED-PAYMENT FROM EAZYDIN-017281300000745-YESB0", "amount": 19814.31, "channel": "EazyDiner", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 140126", "amount": 3831.62, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "RTGS-HDFCR52026011457084024-APHERA HOSPITALITY PRIVATE LIMITED-99909678398869  -HDFC000024", "amount": 400000.0, "channel": "Bank Transfer", "month": "Jan 2026"}, {"date": "", "desc": "NEFT-CITIN26605307728-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 13769.87, "channel": "Zomato", "month": "Jan 2026"}, {"date": "", "desc": "MMT/IMPS/601414941680/BULD64872864/SaahityaTr/KARB0000330", "amount": 8889.0, "channel": "Bank Transfer", "month": "Jan 2026"}, {"date": "", "desc": "MMT/IMPS/601414943897/BULD64872864/SubashTama/IOBA0000268", "amount": 28000.0, "channel": "Bank Transfer", "month": "Jan 2026"}, {"date": "", "desc": "MMT/IMPS/601420901944/Aphera Loan/RACHIT SAB/HDFCBank", "amount": 100000.0, "channel": "Bank Transfer", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 150126", "amount": 42634.25, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 160126", "amount": 3957.0, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "NEFT-YESF260165355381-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 2197.21, "channel": "Dineout", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 170126", "amount": 53069.92, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 180126", "amount": 114082.4, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 190126", "amount": 57201.08, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "RTGS-HDFCR52026011958578868-APHERA HOSPITALITY PRIVATE LIMITED-99909678398869  -HDFC000024", "amount": 500000.0, "channel": "Bank Transfer", "month": "Jan 2026"}, {"date": "", "desc": "NEFT-CITIN26606833305-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 20085.99, "channel": "Zomato", "month": "Jan 2026"}, {"date": "", "desc": "NEFT-YESF260205409400-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 28429.49, "channel": "Dineout", "month": "Jan 2026"}, {"date": "", "desc": "NEFT-YESF360205670753-EAZYDINER PRIVATE LIMITED-PAYMENT FROM EAZYDIN-017281300000745-YESB0", "amount": 2471.78, "channel": "EazyDiner", "month": "Jan 2026"}, {"date": "", "desc": "RTGS-HDFCR52026012059477528-APHERA HOSPITALITY PRIVATE LIMITED-99909678398869  -HDFC000024", "amount": 600000.0, "channel": "Bank Transfer", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 210126", "amount": 17855.44, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "NEFT-CITIN26608302171-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 26410.63, "channel": "Zomato", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 220126", "amount": 29377.05, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 230126", "amount": 118038.33, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "UPI/109045663357/Salary/amandua0402@oki//ICI3ac50c5aea3846b79a6f8f07016f4458", "amount": 200000.0, "channel": "Other", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 240126", "amount": 106699.03, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 250126", "amount": 236522.34, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 260126", "amount": 202212.89, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 270126", "amount": 64371.42, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "NEFT-CITIN26610504809-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 7789.14, "channel": "Zomato", "month": "Jan 2026"}, {"date": "", "desc": "NEFT-YESF260275552556-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 31950.67, "channel": "Dineout", "month": "Jan 2026"}, {"date": "", "desc": "NEFT-YESF360275597706-EAZYDINER PRIVATE LIMITED-PAYMENT FROM EAZYDIN-017281300000745-YESB0", "amount": 26920.13, "channel": "EazyDiner", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 280126", "amount": 16588.85, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "NEFT-CITIN26611603022-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 29817.88, "channel": "Zomato", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 290126", "amount": 40340.5, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 300126", "amount": 37547.73, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 310126", "amount": 128949.56, "channel": "Card", "month": "Jan 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 130226", "amount": 94481.56, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "NEFT-YESF260445853518-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 5071.18, "channel": "Dineout", "month": "Feb 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 140226", "amount": 167723.95, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 150226", "amount": 442414.14, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "FT-MESPOS SET 10XX358822 160226", "amount": 279570.16, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "NEFT-CITIN26621568512-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 86667.36, "channel": "Zomato", "month": "Feb 2026"}, {"date": "", "desc": "RTGS-HDFCR52026021770858895-APHERA HOSPITALITY PRIVATE LIMITED-99909678398869  -HDFC000024", "amount": 237711.0, "channel": "Bank Transfer", "month": "Feb 2026"}, {"date": "", "desc": "NEFT-YESF360485916260-EAZYDINER PRIVATE LIMITED-PAYMENT FROM EAZYDIN-017281300000745-YESB0", "amount": 64729.44, "channel": "EazyDiner", "month": "Feb 2026"}, {"date": "", "desc": "NEFT-YESF260486031544-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 88796.18, "channel": "Dineout", "month": "Feb 2026"}, {"date": "", "desc": "EZY/MESPOS_SET_10XX358822_180226", "amount": 167567.33, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "NEFT-CITIN26622679567-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 116911.85, "channel": "Zomato", "month": "Feb 2026"}, {"date": "", "desc": "EZY/MESPOS_SET_10XX358822_190226", "amount": 60961.47, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "EZY/MESPOS_SET_10XX358822_200226", "amount": 69723.25, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "MMT/IMPS/605110016738/mediatravel/Risetravel/HDFC0009253", "amount": 58000.0, "channel": "Bank Transfer", "month": "Feb 2026"}, {"date": "", "desc": "NEFT-YESF260515662423-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 8487.02, "channel": "Dineout", "month": "Feb 2026"}, {"date": "", "desc": "EZY/MESPOS_SET_10XX358822_210226", "amount": 179711.1, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "MMT/IMPS/605226165277/IMPS transactio/APHERA HOS/HDFC Bank", "amount": 50000.0, "channel": "Bank Transfer", "month": "Feb 2026"}, {"date": "", "desc": "EZY/MESPOS_SET_10XX358822_220226", "amount": 216869.79, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "EZY/MESPOS_SET_10XX358822_230226", "amount": 145115.86, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "NEFT-CITIN26624582283-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 80265.45, "channel": "Zomato", "month": "Feb 2026"}, {"date": "", "desc": "EZY/MESPOS_SET_10XX358822_240226", "amount": 9113.0, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "NEFT-YESF360555969894-EAZYDINER PRIVATE LIMITED-PAYMENT FROM EAZYDIN-017281300000745-YESB0", "amount": 7295.51, "channel": "EazyDiner", "month": "Feb 2026"}, {"date": "", "desc": "RTGS-HDFCR52026022474120627-APHERA HOSPITALITY PRIVATE LIMITED-99909678398869  -HDFC000024", "amount": 200000.0, "channel": "Bank Transfer", "month": "Feb 2026"}, {"date": "", "desc": "EZY/MESPOS_SET_10XX358822_250226", "amount": 21139.1, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "NEFT-CITIN26625701067-ETERNAL LIMITED--0711872078-CITI0000002", "amount": 115155.86, "channel": "Zomato", "month": "Feb 2026"}, {"date": "", "desc": "EZY/MESPOS_SET_10XX358822_260226", "amount": 67783.34, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "NEFT-YESF260576140979-SWIGGY LIMITED-APHERA HOSPITALITY P-002261100000094-YESB0000001", "amount": 119964.97, "channel": "Dineout", "month": "Feb 2026"}, {"date": "", "desc": "EZY/MESPOS_SET_10XX358822_270226", "amount": 56792.28, "channel": "Card", "month": "Feb 2026"}, {"date": "", "desc": "EZY/MESPOS_SET_10XX358822_280226", "amount": 165439.85, "channel": "Card", "month": "Feb 2026"}];
+const INV_DATA   = [{"period": "01 January - 04 January", "date": "05 Jan 2026", "orders": 2, "bill": 0.0, "fees": 884.86, "adj": 0.0, "net": 17862.16}, {"period": "12 January - 14 January", "date": "15 Jan 2026", "orders": 1, "bill": 0.0, "fees": 351.5, "adj": -4898.29, "net": 2197.21}, {"period": "15 January - 18 January", "date": "19 Jan 2026", "orders": 7, "bill": 0.0, "fees": 1685.3, "adj": -5591.16, "net": 28429.48}, {"period": "19 January - 21 January", "date": "22 Jan 2026", "orders": 1, "bill": 0.0, "fees": 130.84, "adj": -7235.12, "net": -4593.96}, {"period": "22 January - 25 January", "date": "26 Jan 2026", "orders": 9, "bill": 0.0, "fees": 2481.5, "adj": -18141.86, "net": 31950.68}, {"period": "26 January - 28 January", "date": "29 Jan 2026", "orders": 0, "bill": 0.0, "fees": 0.0, "adj": -14297.42, "net": -14297.42}, {"period": "29 January - 31 January", "date": "01 Feb 2026", "orders": 9, "bill": 0.0, "fees": 3676.73, "adj": -30163.06, "net": 44057.35}, {"period": "01 February - 04 February", "date": "05 Feb 2026", "orders": 2, "bill": 0.0, "fees": 796.82, "adj": -4925.15, "net": 11160.01}, {"period": "05 February - 08 February", "date": "10 Feb 2026", "orders": 22, "bill": 0.0, "fees": 4994.44, "adj": -11704.25, "net": 89116.29}, {"period": "09 February - 11 February", "date": "12 Feb 2026", "orders": 3, "bill": 0.0, "fees": 636.44, "adj": -7776.37, "net": 5071.17}, {"period": "12 February - 15 February", "date": "16 Feb 2026", "orders": 20, "bill": 0.0, "fees": 5252.2, "adj": -17226.65, "net": 88796.17}, {"period": "16 February - 18 February", "date": "19 Feb 2026", "orders": 4, "bill": 0.0, "fees": 879.42, "adj": -9265.53, "net": 8487.01}, {"period": "19 February - 22 February", "date": "23 Feb 2026", "orders": 25, "bill": 0.0, "fees": 6918.54, "adj": -19696.39, "net": 119964.95}, {"period": "23 February - 25 February", "date": "26 Feb 2026", "orders": 3, "bill": 0.0, "fees": 568.06, "adj": -14478.77, "net": -3011.81}, {"period": "26 February - 28 February", "date": "01 Mar 2026", "orders": 15, "bill": 0.0, "fees": 4826.52, "adj": -22306.16, "net": 75124.28}, {"period": "01 March - 04 March", "date": "05 Mar 2026", "orders": 11, "bill": 0.0, "fees": 2500.8, "adj": -9001.61, "net": 41481.47}, {"period": "05 March - 08 March", "date": "09 Mar 2026", "orders": 16, "bill": 0.0, "fees": 5482.88, "adj": -8824.61, "net": 101854.55}, {"period": "09 March - 11 March", "date": "12 Mar 2026", "orders": 2, "bill": 0.0, "fees": 462.18, "adj": -6285.4, "net": 3044.42}];
+const UTR_DATA   = [{"utr": "YESF260065650404", "date": "05 Jan 2026", "txns": 2, "bill": 18747.0, "comm": 749.88, "gst": 134.98000000000002, "recv": 17862.16, "bank": 17862.15, "var": 0.00999999999839929, "status": "MATCHED"}, {"utr": "YESF260165355381", "date": "15 Jan 2026", "txns": 1, "bill": 7447.0, "comm": 297.88, "gst": 53.62, "recv": 7095.5, "bank": 2197.21, "var": 4898.29, "status": "MISMATCH"}, {"utr": "YESF260205409400", "date": "19 Jan 2026", "txns": 7, "bill": 35706.0, "comm": 1428.24, "gst": 257.06, "recv": 34020.64, "bank": 28429.49, "var": 5591.149999999998, "status": "MISMATCH"}, {"utr": "YESF260275552556", "date": "26 Jan 2026", "txns": 9, "bill": 52574.0, "comm": 2102.96, "gst": 378.54, "recv": 50092.54000000001, "bank": 31950.67, "var": 18141.87000000001, "status": "MISMATCH"}, {"utr": "YESF260335192703", "date": "01 Feb 2026", "txns": 9, "bill": 81601.0, "comm": 3115.8900000000003, "gst": 560.8400000000001, "recv": 74220.40999999999, "bank": 44057.37, "var": 30163.039999999986, "status": "MISMATCH"}, {"utr": "YESF260375587036", "date": "05 Feb 2026", "txns": 2, "bill": 16882.0, "comm": 675.28, "gst": 121.53999999999999, "recv": 16085.16, "bank": 11160.01, "var": 4925.15, "status": "MISMATCH"}, {"utr": "YESF260415681333", "date": "10 Feb 2026", "txns": 22, "bill": 105815.0, "comm": 4232.6, "gst": 761.84, "recv": 100820.54, "bank": 89116.27, "var": 11704.26999999999, "status": "MISMATCH"}, {"utr": "YESF260445853518", "date": "12 Feb 2026", "txns": 3, "bill": 13484.0, "comm": 539.36, "gst": 97.08000000000001, "recv": 12847.54, "bank": 5071.18, "var": 7776.360000000001, "status": "MISMATCH"}, {"utr": "YESF260486031544", "date": "16 Feb 2026", "txns": 20, "bill": 111275.0, "comm": 4451.000000000001, "gst": 801.2, "recv": 106022.82000000002, "bank": 88796.18, "var": 17226.64000000003, "status": "MISMATCH"}, {"utr": "YESF260515662423", "date": "19 Feb 2026", "txns": 4, "bill": 18632.0, "comm": 745.28, "gst": 134.14000000000001, "recv": 17752.54, "bank": 8487.02, "var": 9265.52, "status": "MISMATCH"}, {"utr": "YESF260576140979", "date": "23 Feb 2026", "txns": 25, "bill": 146580.0, "comm": 5863.2, "gst": 1055.3400000000001, "recv": 139661.34, "bank": 119964.97, "var": 19696.369999999995, "status": "MISMATCH"}, {"utr": "YESF260605842421", "date": "01 Mar 2026", "txns": 15, "bill": 102257.0, "comm": 4090.2799999999993, "gst": 736.24, "recv": 97430.44, "bank": 75124.29, "var": 22306.15000000001, "status": "MISMATCH"}, {"utr": "YESF260655463311", "date": "05 Mar 2026", "txns": 11, "bill": 52984.0, "comm": 2119.36, "gst": 381.43999999999994, "recv": 50483.079999999994, "bank": 41481.49, "var": 9001.589999999997, "status": "MISMATCH"}, {"utr": "YESF260696189039", "date": "09 Mar 2026", "txns": 16, "bill": 116162.0, "comm": 4646.48, "gst": 836.3999999999999, "recv": 110679.16, "bank": 101854.56, "var": 8824.600000000006, "status": "MISMATCH"}];
+
+const T_SALES    = 10353572.00;
+const T_RCTS     = 12631282.35;
+const T_OUT      = -2795388.95;
+const T_REC_PCT  = 122.0;
+const DIO_SALES  = 897309.00;
+const DIO_FEES   = 42529.03;
+const DIO_ADJ    = -211817.80;
+const DIO_NET    = 646694.01;
+const DIO_RECV   = 835073.87;
+const DIO_BANK   = 665552.86;
+
+// ===== UTILITIES =====
+const INR = v => '₹ ' + Number(v).toLocaleString('en-IN', {minimumFractionDigits:0,maximumFractionDigits:0});
+const INR2 = v => '₹ ' + Number(v).toLocaleString('en-IN', {minimumFractionDigits:2,maximumFractionDigits:2});
+const PCT  = v => v.toFixed(1) + '%';
+const recClass = r => r >= 90 ? 'good' : r >= 70 ? 'warn' : 'bad';
+const PALETTE = ['#2e75b6','#27ae60','#f39c12','#e74c3c','#9b59b6','#1abc9c','#e67e22','#3498db','#2ecc71'];
+
+// ===== KPI STRIP =====
+(function buildKPI() {
+  const recCol = T_REC_PCT >= 85 ? 'green' : T_REC_PCT >= 70 ? 'amber' : 'red';
+  const kpis = [
+    {label:'Total Sales', val: INR(T_SALES), sub:'Dec 2025 – Mar 2026', cls:''},
+    {label:'Bank Receipts', val: INR(T_RCTS), sub: PCT(T_REC_PCT)+' recovery', cls: recCol},
+    {label:'Outstanding', val: INR(T_OUT), sub:'Pending collection', cls: T_OUT > 0 ? 'amber' : 'green'},
+    {label:'Swiggy Net Payout', val: INR(DIO_NET), sub:'After ads deduction', cls:''},
+    {label:'Merchant Adj (Ads)', val: INR2(DIO_ADJ), sub:'Deducted by Swiggy', cls:'red'},
+  ];
+  const strip = document.getElementById('kpiStrip');
+  kpis.forEach(k => {
+    const d = document.createElement('div');
+    d.className = 'kpi ' + k.cls;
+    d.innerHTML = `<div class="kpi-label">${k.label}</div><div class="kpi-value">${k.val}</div><div class="kpi-sub">${k.sub}</div>`;
+    strip.appendChild(d);
+  });
+})();
+
+// ===== TAB SWITCHING =====
+const chartInited = {};
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (!chartInited[id]) { chartInited[id] = true; initTab(id); }
+}
+
+// ===== CHART INIT =====
+function initTab(id) {
+  if (id === 'overview') initOverview();
+  else if (id === 'reco') initReco();
+  else if (id === 'channel') initChannel();
+  else if (id === 'bank') initBank();
+  else if (id === 'swiggy') initSwiggy();
+}
+
+function mkChart(id, cfg) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return null;
+  return new Chart(ctx.getContext('2d'), cfg);
+}
+
+const DARK_OPTS = {
+  plugins: { legend: { labels: { color:'#8eb4e3', font:{size:11} } } },
+  scales: {
+    x: { ticks:{color:'#6e91b4'}, grid:{color:'rgba(255,255,255,.07)'} },
+    y: { ticks:{color:'#6e91b4', callback: v => '₹'+(v/100000).toFixed(1)+'L'}, grid:{color:'rgba(255,255,255,.07)'} }
+  }
+};
+
+// ------- OVERVIEW -------
+function initOverview() {
+  mkChart('ctxMonthBar', {
+    type:'bar',
+    data:{ labels:MONTHS,
+      datasets:[
+        {label:'Sales',data:M_SALES,backgroundColor:'rgba(46,117,182,.7)'},
+        {label:'Receipts',data:M_RCTS,backgroundColor:'rgba(39,174,96,.7)'},
+        {label:'Outstanding',data:M_OUT,backgroundColor:'rgba(231,76,60,.5)'}
+      ]
+    },
+    options:{ responsive:true, maintainAspectRatio:false, ...DARK_OPTS,
+      plugins:{ ...DARK_OPTS.plugins, title:{display:false} }
+    }
+  });
+  mkChart('ctxOverviewDonut', {
+    type:'doughnut',
+    data:{ labels:['Bank Receipts','Outstanding'],
+      datasets:[{data:[T_RCTS, Math.max(0, T_OUT)], backgroundColor:['#27ae60','#e74c3c'], borderColor:'#1c2d44', borderWidth:3}]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'bottom', labels:{color:'#8eb4e3'}},
+        tooltip:{callbacks:{label:c => c.label+': '+INR(c.parsed)}}
+      }
+    }
+  });
+  mkChart('ctxChannelRecovery', {
+    type:'bar',
+    data:{ labels:CHANNELS,
+      datasets:[{label:'Recovery %',data:C_REC,backgroundColor:CHANNELS.map((_,i)=>PALETTE[i%PALETTE.length])}]
+    },
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#6e91b4',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.07)'},max:100},
+        y:{ticks:{color:'#6e91b4'},grid:{display:false}}
+      }
+    }
+  });
+  mkChart('ctxChannelSales', {
+    type:'bar',
+    data:{ labels:CHANNELS,
+      datasets:[
+        {label:'Sales',data:C_SALES,backgroundColor:'rgba(46,117,182,.7)'},
+        {label:'Receipts',data:C_RCTS,backgroundColor:'rgba(39,174,96,.7)'}
+      ]
+    },
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{ ...DARK_OPTS.plugins },
+      scales:{
+        x:{ ticks:{color:'#6e91b4',callback:v=>'₹'+(v/100000).toFixed(1)+'L'},grid:{color:'rgba(255,255,255,.07)'} },
+        y:{ ticks:{color:'#6e91b4'},grid:{display:false} }
+      }
+    }
+  });
+}
+
+// ------- RECO TAB -------
+function initReco() {
+  mkChart('ctxRecoStacked', {
+    type:'bar',
+    data:{ labels:MONTHS,
+      datasets:[
+        {label:'Bank Receipts',data:M_RCTS,backgroundColor:'rgba(39,174,96,.75)'},
+        {label:'Outstanding',data:M_OUT,backgroundColor:'rgba(231,76,60,.6)'}
+      ]
+    },
+    options:{ responsive:true, maintainAspectRatio:false, ...DARK_OPTS,
+      scales:{ ...DARK_OPTS.scales, x:{stacked:true,ticks:{color:'#6e91b4'},grid:{color:'rgba(255,255,255,.07)'}}, y:{stacked:true,ticks:{color:'#6e91b4',callback:v=>'₹'+(v/100000).toFixed(1)+'L'},grid:{color:'rgba(255,255,255,.07)'}} }
+    }
+  });
+  mkChart('ctxRecoPct', {
+    type:'line',
+    data:{ labels:MONTHS,
+      datasets:[{label:'Recovery %',data:M_REC,borderColor:'#4db8ff',backgroundColor:'rgba(77,184,255,.15)',tension:.4,pointBackgroundColor:'#4db8ff'}]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8eb4e3'}}},
+      scales:{
+        x:{ticks:{color:'#6e91b4'},grid:{color:'rgba(255,255,255,.07)'}},
+        y:{ticks:{color:'#6e91b4',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,.07)'},min:0,max:100}
+      }
+    }
+  });
+  const tbody = document.getElementById('recoTbody');
+  let html = '';
+  MONTHS.forEach((m,i) => {
+    const rc = recClass(M_REC[i]);
+    html += `<tr><td>${m}</td><td class="num">${INR(M_SALES[i])}</td><td class="num">${INR(M_RCTS[i])}</td><td class="num">${INR(M_OUT[i])}</td><td class="num ${rc}">${PCT(M_REC[i])}</td></tr>`;
+  });
+  html += `<tr class="total-row"><td>TOTAL</td><td class="num">${INR(T_SALES)}</td><td class="num">${INR(T_RCTS)}</td><td class="num">${INR(T_OUT)}</td><td class="num ${recClass(T_REC_PCT)}">${PCT(T_REC_PCT)}</td></tr>`;
+  tbody.innerHTML = html;
+}
+
+// ------- CHANNEL TAB -------
+function initChannel() {
+  mkChart('ctxChannelBar', {
+    type:'bar',
+    data:{ labels:CHANNELS,
+      datasets:[
+        {label:'Sales',data:C_SALES,backgroundColor:'rgba(46,117,182,.7)'},
+        {label:'Receipts',data:C_RCTS,backgroundColor:'rgba(39,174,96,.7)'},
+        {label:'Outstanding',data:C_OUT,backgroundColor:'rgba(231,76,60,.5)'}
+      ]
+    },
+    options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', ...DARK_OPTS,
+      scales:{
+        x:{ticks:{color:'#6e91b4',callback:v=>'₹'+(v/100000).toFixed(1)+'L'},grid:{color:'rgba(255,255,255,.07)'}},
+        y:{ticks:{color:'#6e91b4'},grid:{display:false}}
+      }
+    }
+  });
+  mkChart('ctxChannelPie', {
+    type:'doughnut',
+    data:{ labels:CHANNELS,
+      datasets:[{data:C_REC,backgroundColor:PALETTE,borderColor:'#1c2d44',borderWidth:2}]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'bottom',labels:{color:'#8eb4e3',font:{size:10}}},
+        tooltip:{callbacks:{label:c=>c.label+': '+c.parsed+'%'}}
+      }
+    }
+  });
+  const tbody = document.getElementById('channelTbody');
+  let html='', tS=0, tR=0, tO=0;
+  CHANNELS.forEach((ch,i)=>{
+    tS+=C_SALES[i]; tR+=C_RCTS[i]; tO+=C_OUT[i];
+    const rc = recClass(C_REC[i]);
+    html+=`<tr><td>${ch}</td><td class="num">${INR(C_SALES[i])}</td><td class="num">${INR(C_RCTS[i])}</td><td class="num">${INR(C_OUT[i])}</td><td class="num ${rc}">${PCT(C_REC[i])}</td></tr>`;
+  });
+  const totRec = tS>0 ? tR/tS*100 : 0;
+  html+=`<tr class="total-row"><td>TOTAL</td><td class="num">${INR(tS)}</td><td class="num">${INR(tR)}</td><td class="num">${INR(tO)}</td><td class="num ${recClass(totRec)}">${PCT(totRec)}</td></tr>`;
+  tbody.innerHTML = html;
+}
+
+// ------- BANK TAB -------
+let allBankRows = BANK_ROWS;
+function filterBank() {
+  const q = document.getElementById('bankSearch').value.toLowerCase();
+  const filtered = q ? allBankRows.filter(r => r.date.toLowerCase().includes(q)||r.desc.toLowerCase().includes(q)||r.channel.toLowerCase().includes(q)) : allBankRows;
+  renderBankTable(filtered);
+}
+function renderBankTable(rows) {
+  const tbody = document.getElementById('bankTbody');
+  let html='', tot=0;
+  rows.forEach(r=>{
+    tot+=r.amount;
+    html+=`<tr><td>${r.date}</td><td style="max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.desc}">${r.desc}</td><td>${r.channel}</td><td>${r.month}</td><td class="num">${INR2(r.amount)}</td></tr>`;
+  });
+  html+=`<tr class="total-row"><td colspan="4">TOTAL (${rows.length} transactions)</td><td class="num">${INR2(tot)}</td></tr>`;
+  tbody.innerHTML = html;
+}
+function initBank() {
+  renderBankTable(allBankRows);
+  // Build category rollup
+  const catMap={};
+  const monMap={};
+  allBankRows.forEach(r=>{
+    catMap[r.channel]=(catMap[r.channel]||0)+r.amount;
+    monMap[r.month]=(monMap[r.month]||0)+r.amount;
+  });
+  const cats=Object.keys(catMap), cVals=cats.map(c=>catMap[c]);
+  const mons=Object.keys(monMap).sort(), mVals=mons.map(m=>monMap[m]);
+  mkChart('ctxBankDonut',{
+    type:'doughnut',
+    data:{labels:cats,datasets:[{data:cVals,backgroundColor:PALETTE,borderColor:'#1c2d44',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{color:'#8eb4e3',font:{size:10}}},
+        tooltip:{callbacks:{label:c=>c.label+': '+INR(c.parsed)}}
+      }
+    }
+  });
+  mkChart('ctxBankMonthly',{
+    type:'bar',
+    data:{labels:mons,datasets:[{label:'Receipts',data:mVals,backgroundColor:PALETTE[0]}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8eb4e3'}}},
+      scales:{
+        x:{ticks:{color:'#6e91b4'},grid:{color:'rgba(255,255,255,.07)'}},
+        y:{ticks:{color:'#6e91b4',callback:v=>'₹'+(v/100000).toFixed(1)+'L'},grid:{color:'rgba(255,255,255,.07)'}}
+      }
+    }
+  });
+}
+
+// ------- SWIGGY TAB -------
+function initSwiggy() {
+  // Flow table
+  const flowRows = [
+    ['Total Dineout Sales', DIO_SALES, '', 'Monthly Sales Reports (MesPOS)', false],
+    ['(−) Swiggy Commission + GST', DIO_FEES, '', 'Invoice Row B — Total Swiggy Service Fees', true],
+    ['(−) Merchant Adjustments (Ads)', Math.abs(DIO_ADJ), '', 'Invoice Row C — Deducted before remittance', true],
+    ['= Net Payout (Swiggy Invoice)', DIO_NET, '', 'Invoice Row G — Sum of all Net Payouts', false],
+    ['Amount Receivable (CSV)', DIO_RECV, '', 'Per-transaction CSV: Bill − Commission − GST', false],
+    ['Bank Receipts Received', DIO_BANK, '', 'Bank Statement — UTR-matched NEFT credits', false],
+    ['Outstanding Gap', DIO_RECV - DIO_BANK, '', 'Explained by Merchant Adjustments above', false],
+  ];
+  let fHtml = '<tr style="background:#1a3060"><td class="flow-label">METRIC</td><td class="flow-amt">AMOUNT</td><td class="flow-note">SOURCE / NOTES</td></tr>';
+  flowRows.forEach(([lbl, amt, , note, isNeg]) => {
+    const cls = isNeg ? 'flow-neg' : amt < 0 ? 'flow-neg' : 'flow-pos';
+    fHtml += `<tr><td class="flow-label">${lbl}</td><td class="flow-amt ${cls}">${INR2(amt)}</td><td class="flow-note">${note}</td></tr>`;
+  });
+  document.getElementById('flowTable').innerHTML = fHtml;
+
+  // Invoice table
+  let iHtml = '';
+  INV_DATA.forEach(inv => {
+    const adjCls = inv.adj < 0 ? ' style="color:#f39c12;font-weight:700"' : '';
+    const netCls = inv.net < 0 ? ' style="color:#e74c3c;font-weight:700"' : '';
+    iHtml += `<tr><td>${inv.period}</td><td>${inv.date}</td><td class="num">${inv.orders}</td><td class="num">${INR2(inv.bill)}</td><td class="num">${INR2(inv.fees)}</td><td class="num"${adjCls}>${INR2(inv.adj)}</td><td class="num"${netCls}>${INR2(inv.net)}</td><td></td></tr>`;
+  });
+  const tBill=INV_DATA.reduce((a,r)=>a+r.bill,0), tFees=INV_DATA.reduce((a,r)=>a+r.fees,0),
+        tAdj=INV_DATA.reduce((a,r)=>a+r.adj,0), tNet=INV_DATA.reduce((a,r)=>a+r.net,0);
+  iHtml += `<tr class="total-row"><td>TOTAL</td><td></td><td class="num">${INV_DATA.reduce((a,r)=>a+r.orders,0)}</td><td class="num">${INR2(tBill)}</td><td class="num">${INR2(tFees)}</td><td class="num">${INR2(tAdj)}</td><td class="num">${INR2(tNet)}</td><td></td></tr>`;
+  document.getElementById('invTbody').innerHTML = iHtml;
+
+  // UTR table
+  let uHtml = '';
+  UTR_DATA.forEach(u => {
+    const badge = `<span class="badge ${u.status.toLowerCase()}">${u.status}</span>`;
+    const varCls = u.var > 5 ? 'bad' : u.var < -5 ? 'good' : '';
+    uHtml += `<tr><td style="font-size:11px">${u.utr}</td><td>${u.date}</td><td class="num">${u.txns}</td><td class="num">${INR2(u.bill)}</td><td class="num">${INR2(u.comm)}</td><td class="num">${INR2(u.gst)}</td><td class="num">${INR2(u.recv)}</td><td class="num">${INR2(u.bank)}</td><td class="num ${varCls}">${INR2(u.var)}</td><td>${badge}</td></tr>`;
+  });
+  const tRecv=UTR_DATA.reduce((a,r)=>a+r.recv,0), tBank=UTR_DATA.reduce((a,r)=>a+r.bank,0);
+  uHtml += `<tr class="total-row"><td colspan="6">TOTAL (${UTR_DATA.length} UTRs)</td><td class="num">${INR2(tRecv)}</td><td class="num">${INR2(tBank)}</td><td class="num">${INR2(tRecv-tBank)}</td><td></td></tr>`;
+  document.getElementById('utrTbody').innerHTML = uHtml;
+
+  // Charts
+  const invLabels = INV_DATA.map(r=>r.period.substring(0,12));
+  mkChart('ctxInvBar', {
+    type:'bar',
+    data:{ labels:invLabels,
+      datasets:[
+        {label:'Bill Value',data:INV_DATA.map(r=>r.bill),backgroundColor:'rgba(46,117,182,.7)'},
+        {label:'Swiggy Fees',data:INV_DATA.map(r=>r.fees),backgroundColor:'rgba(155,89,182,.7)'},
+        {label:'Merchant Adj',data:INV_DATA.map(r=>Math.abs(r.adj)),backgroundColor:'rgba(243,156,18,.7)'},
+        {label:'Net Payout',data:INV_DATA.map(r=>r.net),backgroundColor:'rgba(39,174,96,.7)'}
+      ]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#8eb4e3',font:{size:10}}}},
+      scales:{
+        x:{ticks:{color:'#5a80a8',font:{size:9},maxRotation:45},grid:{color:'rgba(255,255,255,.07)'}},
+        y:{ticks:{color:'#6e91b4',callback:v=>'₹'+(v/1000).toFixed(0)+'K'},grid:{color:'rgba(255,255,255,.07)'}}
+      }
+    }
+  });
+  mkChart('ctxUtrDonut', {
+    type:'doughnut',
+    data:{ labels:['Bank Received','Outstanding'],
+      datasets:[{data:[DIO_BANK, Math.max(0,DIO_RECV-DIO_BANK)],backgroundColor:['#27ae60','#e74c3c'],borderColor:'#1c2d44',borderWidth:3}]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{color:'#8eb4e3'}},
+        tooltip:{callbacks:{label:c=>c.label+': '+INR(c.parsed)}}
+      }
+    }
+  });
+}
+
+// Init overview on load
+initOverview();
+chartInited['overview'] = true;
+</script>
+</body>
+</html>
